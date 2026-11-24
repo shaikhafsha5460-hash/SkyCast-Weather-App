@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyCast | Weather App</title>
+    <link rel="stylesheet" href="weather.css">
+</head>
+<body>
+    <div class="card">
+        <!-- Application heading -->
+<div class="app-header">
+    <h1>SkyCast</h1>
+    <p>Your Weather, Your World.</p>
+</div>
+        <div class="search">
+            <input type="text" placeholder="enter city name" spellcheck="false">
+            <button><img src="images/search.png" alt="search"></button>
+        </div>
+        <!-- Loading message -->
+<p class="loading" style="display: none;">
+    Loading weather...
+</p>
+        <p class="error" style="display: none;">
+    Invalid city name!
+</p>
+        <div class="weather">
+            <img src="images/rain.png" class="weather-icon">
+            <h1 class="temp">22°C</h1>
+            <h2 class="city">New York</h2>
+            <div class="details">
+                <div class="col">
+                    <img src="images/humidity.png" >
+                    <div>
+                        <p class="humidity">50%</p>
+                        <p>Humidity</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <img src="images/wind.png" >
+                    <div>
+                        <p class="wind">15 km/hr</p>
+                        <p>Wind Speed</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sunrise and Sunset Information -->
+<div class="sun-details">
+
+    <div class="sun-item">
+        <h3>Sunrise</h3>
+        <p class="sunrise">--:--</p>
+    </div>
+
+    <div class="sun-item">
+        <h3>Sunset</h3>
+        <p class="sunset">--:--</p>
+    </div>
+
+</div>
+<!-- 5 Day Weather Forecast -->
+<div class="forecast-section">
+
+    <h2>5-Day Forecast</h2>
+
+    <div class="forecast-container">
+        <!-- Forecast cards will be added dynamically using JavaScript -->
+    </div>
+
+</div>
+    </div>
+    
+<script>
+const apiKey = "YOUR_API_KEY";
+
+const apiUrl = "https://api.openweathermap.org/data/2.5/weather?units=metric&q=";
+const forecastUrl = "https://api.openweathermap.org/data/2.5/forecast?units=metric&q=";
+
+// Selecting HTML elements
+const searchBox = document.querySelector(".search input");
+const searchBtn = document.querySelector(".search button");
+const errorMsg = document.querySelector(".error");
+const weather = document.querySelector(".weather");
+
+const weatherIcon = document.querySelector(".weather-icon");
+const card = document.querySelector(".card");
+
+// Function to fetch weather information
+async function checkWeather(city) {
+
+    if (city === "") {
+        errorMsg.innerHTML = "Please enter a city name!";
+        errorMsg.style.display = "block";
+        weather.style.display = "none";
+        return;
+    }
+
+    try {
+
+        // Fetch current weather
+        const response = await fetch(
+            apiUrl + encodeURIComponent(city) + `&appid=${apiKey}`
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+
+            errorMsg.innerHTML = response.status === 404
+                ? "City not found! Please enter a valid city."
+                : errorData.message;
+
+            errorMsg.style.display = "block";
+            weather.style.display = "none";
+            return;
+        }
+
+        const data = await response.json();
+
+        // Get weather condition
+        const condition = data.weather[0].main;
+
+        // Change weather icon
+        if (condition === "Clear") {
+            weatherIcon.src = "images/clear.png";
+        }
+        else if (condition === "Clouds") {
+            weatherIcon.src = "images/clouds.png";
+        }
+        else if (condition === "Rain") {
+            weatherIcon.src = "images/rain.png";
+        }
+        else if (condition === "Drizzle") {
+            weatherIcon.src = "images/drizzle.png";
+        }
+        else if (condition === "Mist" || condition === "Fog" || condition === "Haze") {
+            weatherIcon.src = "images/mist.png";
+        }
+        else if (condition === "Snow") {
+            weatherIcon.src = "images/snow.png";
+        }
+        else if (condition === "Thunderstorm") {
+            weatherIcon.src = "images/rain.png";
+        }
+        else {
+            weatherIcon.src = "images/clouds.png";
+        }
+
+        console.log("Weather condition:", condition);
+
+        // Change card background
+        card.classList.remove("sunny", "cloudy", "rainy", "snowy", "mist");
+
+        if (condition === "Clear") {
+            card.classList.add("sunny");
+        }
+        else if (condition === "Clouds") {
+            card.classList.add("cloudy");
+        }
+        else if (condition === "Rain" || condition === "Drizzle" || condition === "Thunderstorm") {
+            card.classList.add("rainy");
+        }
+        else if (condition === "Snow") {
+            card.classList.add("snowy");
+        }
+        else if (condition === "Mist" || condition === "Fog" || condition === "Haze") {
+            card.classList.add("mist");
+        }
+
+        // Display current weather
+        errorMsg.style.display = "none";
+        weather.style.display = "block";
+
+        document.querySelector(".city").innerHTML = data.name;
+        document.querySelector(".temp").innerHTML = Math.round(data.main.temp) + "°C";
+        document.querySelector(".humidity").innerHTML = data.main.humidity + "%";
+        document.querySelector(".wind").innerHTML = data.wind.speed + " km/hr";
+
+        // Fetch forecast information
+        await getForecast(city);
+
+    } catch (error) {
+
+        errorMsg.innerHTML = "Unable to connect. Please try again!";
+        errorMsg.style.display = "block";
+        weather.style.display = "none";
+
+        console.log(error);
+    }
+}
+
+
+// Function to format sunrise and sunset time
+function formatCityTime(timestamp, timezone) {
+
+    return new Date((timestamp + timezone) * 1000)
+        .toISOString()
+        .slice(11, 16);
+}
+
+
+// Function to fetch 5-day forecast
+async function getForecast(city) {
+
+    try {
+
+        const response = await fetch(
+            forecastUrl + encodeURIComponent(city) + `&appid=${apiKey}`
+        );
+
+        if (!response.ok) {
+            throw new Error("Forecast information unavailable");
+        }
+
+        const forecastData = await response.json();
+
+        // Display sunrise and sunset
+        const timezone = forecastData.city.timezone;
+
+        document.querySelector(".sunrise").innerHTML =
+            formatCityTime(forecastData.city.sunrise, timezone);
+
+        document.querySelector(".sunset").innerHTML =
+            formatCityTime(forecastData.city.sunset, timezone);
+
+
+        // Group forecast entries by local city date
+        const dailyForecast = {};
+
+        forecastData.list.forEach(item => {
+
+            const localDate = new Date(
+                (item.dt + timezone) * 1000
+            ).toISOString().slice(0, 10);
+
+            const localHour = new Date(
+                (item.dt + timezone) * 1000
+            ).getUTCHours();
+
+            if (!dailyForecast[localDate]) {
+                dailyForecast[localDate] = {
+                    item: item,
+                    hourDifference: Math.abs(localHour - 12)
+                };
+            }
+            else {
+
+                const difference = Math.abs(localHour - 12);
+
+                if (difference < dailyForecast[localDate].hourDifference) {
+                    dailyForecast[localDate] = {
+                        item: item,
+                        hourDifference: difference
+                    };
+                }
+            }
+
+        });
+
+
+        // Get first five forecast days
+        const days = Object.keys(dailyForecast).slice(0, 5);
+
+        const forecastContainer = document.querySelector(".forecast-container");
+
+        forecastContainer.innerHTML = "";
+
+        days.forEach(date => {
+
+            const item = dailyForecast[date].item;
+
+            const dayName = new Date(date + "T00:00:00Z")
+                .toLocaleDateString("en-US", {
+                    weekday: "short",
+                    timeZone: "UTC"
+                });
+
+            const temperature = Math.round(item.main.temp);
+
+            const icon = item.weather[0].icon;
+
+            const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
+
+            // Create forecast card
+            const forecastCard = document.createElement("div");
+
+            forecastCard.classList.add("forecast-card");
+
+            forecastCard.innerHTML = `
+                <p>${dayName}</p>
+                <img src="${iconUrl}" alt="${item.weather[0].description}">
+                <h3>${temperature}°C</h3>
+                <p>${item.weather[0].main}</p>
+            `;
+
+            forecastContainer.appendChild(forecastCard);
+
+        });
+
+    } catch (error) {
+
+        console.log("Forecast error:", error);
+
+        document.querySelector(".sunrise").innerHTML = "--:--";
+        document.querySelector(".sunset").innerHTML = "--:--";
+
+        document.querySelector(".forecast-container").innerHTML =
+            "<p>Forecast unavailable. Please try again.</p>";
+    }
+}
+
+
+// Search using button click
+searchBtn.addEventListener("click", () => {
+    checkWeather(searchBox.value.trim());
+});
+
+
+// Search using Enter key
+searchBox.addEventListener("keydown", (event) => {
+
+    if (event.key === "Enter") {
+        checkWeather(searchBox.value.trim());
+    }
+
+});
+</script>
+</body>
+</html>
